@@ -21,7 +21,7 @@
 		private $trNodes; // tr from body only
 		private $colLabel;
 		private $settings;
-		private $ttable; //array that will contain the table structure
+		private $table; //array that will contain the table structure
 
 		/**
 		**	@url : string with a url of the file containing the table
@@ -55,57 +55,135 @@
 			$this->trNodes = $tbodyNode->item(0)->childNodes;
 
 			//will set colums labels
-			$this->setHeaders();
-			$this->structuringdData();
-		}		
-
-		private function setHeaders()
-		{
-			if(!isset($this->settings["colOnly"]) && isset($this->settings["colIgnore"]))
+			if(isset($this->settings["colOnly"]) && isset($this->settings["colIgnore"]))
 			{
 				echo "Error: You can't set both colOnly and colIgnore";
 				return;
 			}
-
 			else
 			{
-				//if setting for filtering collums was not set add all collumns to
-				if(!isset($this->settings["colOnly"]) && !isset($this->settings["colIgnore"]))
-				{
-					foreach ($this->thNodes as $th) 
-					{
-						array_push($this->colLabel, $th->textContent);
-					}
-				}
-
-				//will only set the collums that have been specified
-				if(isset($this->settings["colOnly"]))
-				{
-					foreach ($this->settings["colOnly"] as $key) 
-					{
-						array_push($this->colLabel ,$this->thNodes->item($key)->textContent);
-					}
-				}
-			
-				// TODO: add exception for processing all collums except for the ignored indexed parsed through the array setting
+				$this->setHeaders();
+				$this->structuringdData();
+				$this->addingData();
 			}
+		}		
+
+		private function isColOnly()
+		{
+			if(isset($this->settings["colOnly"]))
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+
+		}
+
+		private function isIgnorCol()
+		{
+			if(isset($this->settings["colIgnore"]))
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+
+		}
+
+		private function setHeaders()
+		{
+			//if setting for filtering collums was not set add all collumns to
+			if(!$this->isColOnly() && !$this->isIgnorCol())
+			{
+				foreach ($this->thNodes as $th) 
+				{
+					array_push($this->colLabel, $th->textContent);
+				}
+			}
+
+			//will only set the collums that have been specified
+			if($this->isColOnly())
+			{
+				foreach ($this->settings["colOnly"] as $key) 
+				{
+					array_push($this->colLabel ,$this->thNodes->item($key)->textContent);
+				}
+			}
+		
+			// TODO: add exception for processing all collums except for the ignored indexed parsed through the array setting
 		}
 
 		// this function will structure the table into an array in the format of [ rowx => [colname => col0, colname => col1, colname => col2]...]
 		private function structuringdData()
 		{
-			for($i = 0; $i < $this->trNodes.length)
+			if($this->isColOnly())
 			{
-				array_push($this->table, "row" + i => array());
-			}
+				for($i = 0; $i < $this->trNodes->length; $i++)
+				{
+					$this->table["row$i"] = array();
 
-			print_r($this->table);
+	
+					// for($x = 0; $x < $size; $x++)
+					// {
+					// 	$this->table["row$i"][$this->colLabel[$x]] = $row->item($this->settings["colOnly"][$x])->textContent;
+					// }
+				}
+			}
+		}
+
+		private function addingData()
+		{
+			$labelLen = count($this->colLabel); // move this to the if statement
+			$tableLen = count($this->table);
+			$row;
+			$num; 
+			echo "$labelLen  <br/>  $tableLen  <br/><br/>Collum Labels:"; var_dump($this->colLabel); echo "<br><br>Table structure:"; var_dump($this->table);
+
+			if($this->isColOnly())
+			{
+				// var_dump($this->table);
+				// var_dump($this->settings);
+				// var_dump($$this->trNodes);
+				// 
+				// for($i = 0; $i < $tableLen; $i++) 
+				// {
+				// 	$row = $this->trNodes->item($i)->childNodes;
+
+				// 	for($x = 0; $x < $labelLen; $x++)
+				// 	{
+				// 		// $this->table["row$i"][$this->colLabel[$x]] =  $row->item($this->settings["colOnly"][$x])->textContent;
+				// 		$num = $this->settings["colOnly"][$x];
+						
+				// 		echo "<br/>
+				// 				\$i = $i <br/>
+				// 				\$num = $num <br/>
+				// 			";
+
+				// 		//echo "<br/> $num <br/>";
+				// 		//print_r($row->item( $this->settings["colOnly"][$num]));
+				// 	}
+					for($i = 0; $i < $tableLen; $i++)
+					{
+						$row = $this->trNodes->item($i);
+						$tdNodes = $row->getElementsByTagName("td"); 
+
+						for($x = 0; $x < $labelLen; $x++)
+						{
+							$this->table["row$i"][$this->colLabel[$x]] = $tdNodes->item($this->settings["colOnly"][$x])->textContent;
+						}
+					}
+				 echo "Table after loop:"; var_dump($this->table);
+			}
 		}
 	}
 
 	$settings = 
 	[
-		"colOnly"=>[2,21,36,37,42,43,44,45,46,47,48,49,50,51,52,53,54,55]
+		"colOnly"=>[2, 21,36,37,42,43,44,45,46,47,48,49,50,51,52,53,54,55],
 	];
 
 	$exmpl = new DOMTable2JSON("http://localhost/RMT/data/cutdownRoadmap.html", $settings);
