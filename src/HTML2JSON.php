@@ -1,19 +1,27 @@
 <?php 
-	// require_once $_SERVER['DOCUMENT_ROOT'] . "/RMT/Lib/table2JSON/HTMLTable2JSON.php";
 
-	// $tableJSON = new HTMLTable2JSON();
+	/**
+	*
+	* 	This class will firstly structure the table in the following way:
+	*
+	* 	table => [
+	* 				row1 => [data, data, data],
+	* 				row2 => [data, data, data],
+	* 				row1 => [data, data, data]			
+	* 			]
+	*    
+	*    the amount of rows and data(collum) will depend onyour table size
+	*
+	* 	after processing the data it will turnit into JSON and output it to a file
+	* 	by using the dumpJSON() methodwhich takes a $url of where you want the data to go to
+	*
+	*/
 
-	// $cols = [2, 21, 35, 36, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55];
-
-	// $dataJSON = $tableJSON->tableToJSON("http://localhost/RMT/data/cutdownRoadmap.html", true, '', NULL, NULL, false, $cols, false, false, true, null);
-
-	// print_r($dataJSON);
 	ini_set('display_errors', 'On');
 	ini_set('memory_limit', '-1');
 
 	class DOMTable2JSON
 	{
-
 		private $html;
 		private $tableNode;
 		private $thNodes;
@@ -35,6 +43,7 @@
 		**/
 		function __construct($url, $setting = null)
 		{
+			//assinig values to the variables that will be used for the process
 			$this->colLabel = array();
 			$this->settings = $setting;
 
@@ -54,7 +63,7 @@
 			$tbodyNode = $this->tableNode->getElementsByTagName("tbody");
 			$this->trNodes = $tbodyNode->item(0)->childNodes;
 
-			//will set colums labels
+			//check if usser accidently used both possible filtering and displaying adequate error
 			if(isset($this->settings["colOnly"]) && isset($this->settings["colIgnore"]))
 			{
 				echo "Error: You can't set both colOnly and colIgnore";
@@ -62,9 +71,9 @@
 			}
 			else
 			{
-				$this->setHeaders();
-				$this->structuringdData();
-				$this->addingData();
+				$this->setHeaders();		//will set colums labels
+				$this->structTableArr();	//will structure the array representation of the table
+				$this->addingData();		//will add data to the array representation of the table
 			}
 		}		
 
@@ -118,74 +127,62 @@
 		}
 
 		// this function will structure the table into an array in the format of [ rowx => [colname => col0, colname => col1, colname => col2]...]
-		private function structuringdData()
+		private function structTableArr()
 		{
-			if($this->isColOnly())
+			$length = $this->trNodes->length;
+			//making sure that the table is of the same length as trNodes variables
+			for($i = 0; $i < $length; $i++)
 			{
-				for($i = 0; $i < $this->trNodes->length; $i++)
-				{
-					$this->table["row$i"] = array();
-
-	
-					// for($x = 0; $x < $size; $x++)
-					// {
-					// 	$this->table["row$i"][$this->colLabel[$x]] = $row->item($this->settings["colOnly"][$x])->textContent;
-					// }
-				}
+				$this->table["row$i"] = array();
 			}
 		}
 
 		private function addingData()
 		{
-			$labelLen = count($this->colLabel); // move this to the if statement
-			$tableLen = count($this->table);
-			$row;
-			$num; 
-			echo "$labelLen  <br/>  $tableLen  <br/><br/>Collum Labels:"; var_dump($this->colLabel); echo "<br><br>Table structure:"; var_dump($this->table);
+			$labelLen = count($this->colLabel); //getting the length of the labels array
+			$tableLen = count($this->table); //getting the length of the table array should be the same length as $trNode
 
+			//the next 2 loops do pretty much the same thing only one filters the content the other doesnt 
+			//so i'm only commenting one of them
 			if($this->isColOnly())
 			{
-				// var_dump($this->table);
-				// var_dump($this->settings);
-				// var_dump($$this->trNodes);
-				// 
-				// for($i = 0; $i < $tableLen; $i++) 
-				// {
-				// 	$row = $this->trNodes->item($i)->childNodes;
+				for($i = 0; $i < $tableLen; $i++) //indexes for the node list $trNodes
+				{
+					$row = $this->trNodes->item($i); //getting row $i from node list object and assigning it to $row
+					$tdNodes = $row->getElementsByTagName("td");  //getting a node list with all the td elements in current row
 
-				// 	for($x = 0; $x < $labelLen; $x++)
-				// 	{
-				// 		// $this->table["row$i"][$this->colLabel[$x]] =  $row->item($this->settings["colOnly"][$x])->textContent;
-				// 		$num = $this->settings["colOnly"][$x];
-						
-				// 		echo "<br/>
-				// 				\$i = $i <br/>
-				// 				\$num = $num <br/>
-				// 			";
-
-				// 		//echo "<br/> $num <br/>";
-				// 		//print_r($row->item( $this->settings["colOnly"][$num]));
-				// 	}
-					for($i = 0; $i < $tableLen; $i++)
+					for($x = 0; $x < $labelLen; $x++) //loop to cycle through the indexes
 					{
-						$row = $this->trNodes->item($i);
-						$tdNodes = $row->getElementsByTagName("td"); 
-
-						for($x = 0; $x < $labelLen; $x++)
-						{
-							$this->table["row$i"][$this->colLabel[$x]] = $tdNodes->item($this->settings["colOnly"][$x])->textContent;
-						}
+						// assign to the current row of the table array the value located $x index of array containing the collums to filter from
+						$this->table["row$i"][$this->colLabel[$x]] = $tdNodes->item($this->settings["colOnly"][$x])->textContent;
 					}
-				 echo "Table after loop:"; var_dump($this->table);
+				}
+			}
+
+			//same as befor minus the data filtering also esier to read due to not having to implement data filtering
+			elseif (!$this->isColOnly() && !$this->isIgnorCol()) 
+			{
+				for($i = 0; $i < $tableLen; $i++)
+				{
+					$row = $this->trNodes->item($i);
+					$tdNodes = $row->getElementsByTagName("td"); 
+
+					for($x = 0; $x < $labelLen; $x++)
+					{
+						$this->table["row$i"][$this->colLabel[$x]] = $tdNodes->item($x)->textContent;
+					}
+				}
 			}
 		}
+
+		//will dump the JSON at your desired local url
+		public function dumpJSON($url)
+		{
+			$JSON = json_encode($this->table);
+			$file = fopen($url, 'w');
+			fwrite($file, $JSON);
+			fclose($file);
+		}
 	}
-
-	$settings = 
-	[
-		"colOnly"=>[2, 21,36,37,42,43,44,45,46,47,48,49,50,51,52,53,54,55],
-	];
-
-	$exmpl = new DOMTable2JSON("http://localhost/RMT/data/cutdownRoadmap.html", $settings);
 
 ?>
