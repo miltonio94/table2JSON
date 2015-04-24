@@ -22,10 +22,8 @@
 
 	class DOMTable2JSON
 	{
-		private $html;
 		private $tableNode;
 		private $thNodes;
-		private $destJSON;
 		private $trNodes; // tr from body only
 		private $colLabel;
 		private $settings;
@@ -35,26 +33,47 @@
 		**	@url : string with a url of the file containing the table
 		**	@setting 	: array containing settings
 		** 					settings options:
+		**					curl => a non local url for the html table
+		**					url => a locale url
 		**					colOnly => [an array containing the indexed colums that you wish to process],
 		**					colIgnore => [array of indexes of the collums to be ignored],
-		**					destination => "string for the destination of where you want the file to go",
 		**					
 		**					
 		**/
-		function __construct($url, $setting = null)
+		function __construct($setting)
 		{
 			//assinig values to the variables that will be used for the process
 			$this->colLabel = array();
 			$this->settings = $setting;
 
+
+			if($this->isCurlSet() && $this->isUrlSet())
+			{
+				echo "ERROR: please set either url or curl in settings and NOT BOTH";
+				return;
+			}
+
+			if(!$this->isCurlSet() && !$this->isUrlSet())
+			{
+				echo "ERROR: please set EITHER the url or curl in settings";
+				return;
+			}
+
 			//loading html file as a string
-			$c = curl_init($url);
-			curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
-			$this->html = curl_exec($c);
+			elseif($this->isCurlSet())
+			{
+				$c = curl_init($this->settings['curl']);
+				curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
+				$html = curl_exec($c);
+			}
+			elseif($this->isUrlSet())
+			{
+				$html = file_get_contents($this->settings['url']); 
+			}
 
 			//assigning html a DOM object
 			$this->tableNode = new DOMDocument();
-			$this->tableNode->loadHTML($this->html);//loading the html document into the DOM object variable
+			$this->tableNode->loadHTML($html);//loading the html document into the DOM object variable
 			
 			//getting all the headings for the table in a DOM format
 			$this->thNodes = $this->tableNode->getElementsByTagName("th");
@@ -76,6 +95,30 @@
 				$this->addingData();		//will add data to the array representation of the table
 			}
 		}		
+
+		private function isCurlSet()
+		{
+			if(isset($this->settings['curl']))
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		private function isUrlSet()
+		{
+			if(isset($this->settings['url']))
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
 
 		private function isColOnly()
 		{
@@ -182,6 +225,12 @@
 			$file = fopen($url, 'w');
 			fwrite($file, $JSON);
 			fclose($file);
+		}
+
+		public function getJSON()
+		{
+			$JSON = json_encode($this->table);
+			return $JSON;
 		}
 	}
 
